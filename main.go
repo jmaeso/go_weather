@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -14,16 +15,25 @@ func main() {
 
 	http.HandleFunc("/", helloFunc) //Call to root path calls to helloFunc
 	http.HandleFunc("/weather/", func(w http.ResponseWriter, r *http.Request) {
+		begin := time.Now()
 		city := strings.SplitN(r.URL.Path, "/", 3)[2]
 
-		data, err := query(city)
+		queryData, err := query(city)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		json.NewEncoder(w).Encode(data)
+
+		var clientData clientWeatherData
+		clientData.Name = city
+		clientData.Main.Kelvin = queryData.Main.Kelvin
+		clientData.Main.Degrees = clientData.Main.Kelvin - 273.15
+		total_time := time.Since(begin).String()
+		clientData.QueryTime = total_time
+
+		json.NewEncoder(w).Encode(clientData)
 	})
 
 	http.ListenAndServe(":8080", nil)
@@ -33,26 +43,35 @@ func helloFunc(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("You asked for nothing! Here you have a Hello World so. :D\n"))
 }
 
-func query(city string) (weatherData, error) {
+func query(city string) (openWeatherData, error) {
 	resp, err := http.Get("http://api.openweathermap.org/data/2.5/weather?APPID=254502a503e64cd51c607d2107a912d8&q=" + city)
 	if err != nil {
-		return weatherData{}, err
+		return openWeatherData{}, err
 	}
 
 	defer resp.Body.Close()
 
-	var d weatherData
+	var d openWeatherData
 
 	if err := json.NewDecoder(resp.Body).Decode(&d); err != nil {
-		return weatherData{}, err
+		return openWeatherData{}, err
 	}
 
 	return d, nil
 }
 
-type weatherData struct {
+type openWeatherData struct {
 	Name string `json:"name"`
 	Main struct {
 		Kelvin float64 `json:"temp"`
 	} `json:"main"`
+}
+
+type clientWeatherData struct {
+	Name string `json:"name"`
+	Main struct {
+		Kelvin  float64 `json:"kelvin"`
+		Degrees float64 `json:"degrees"`
+	} `json:"main"`
+	QueryTime string `json:"query_time"`
 }
