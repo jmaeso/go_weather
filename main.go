@@ -30,8 +30,8 @@ func main() {
 		clientData.Name = city
 		clientData.Main.Kelvin = queryData.Main.Kelvin
 		clientData.Main.Degrees = clientData.Main.Kelvin - 273.15
-		total_time := time.Since(begin).String()
-		clientData.QueryTime = total_time
+		totalTime := time.Since(begin).String()
+		clientData.QueryTime = totalTime
 
 		json.NewEncoder(w).Encode(clientData)
 	})
